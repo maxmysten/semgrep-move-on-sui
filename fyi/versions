@@ -1,6 +1,6 @@
 File: semgrep-grammars/src/tree-sitter-move-on-sui/LICENSE
 Git repo name: tree-sitter-move-on-sui
-Latest commit in repo: 144c68acba17416edade87a138e8116d58c259f6
+Latest commit in repo: 260eb89274bb75821ca9f5cf9b5a5b8d3bdb44b4
 Last change in file:
   commit 187cb2000be54d49e125a5cf47ef3a51d01ca853
   Author: Tim Zakian <2895723+tzakian@users.noreply.github.com>
@@ -12,28 +12,21 @@ Last change in file:
 ---
 File: semgrep-grammars/src/tree-sitter-move-on-sui/grammar.js
 Git repo name: tree-sitter-move-on-sui
-Latest commit in repo: 144c68acba17416edade87a138e8116d58c259f6
+Latest commit in repo: 260eb89274bb75821ca9f5cf9b5a5b8d3bdb44b4
 Last change in file:
-  commit 144c68acba17416edade87a138e8116d58c259f6
+  commit 260eb89274bb75821ca9f5cf9b5a5b8d3bdb44b4
   Author: maxmysten <max.spector@mystenlabs.com>
-  Date:   Sat Aug 17 01:32:30 2024 -0400
+  Date:   Mon Sep 2 18:29:13 2024 -0400
   
-      Added a comment and changes the lang name to move_on_sui.
+      Fixing parsing grammer so marco params work correctly later in semgrep
 ---
 File: semgrep-grammars/src/semgrep-move-on-sui/grammar.js
 Git repo name: ocaml-tree-sitter-semgrep
-Latest commit in repo: eb29b83e23b730b408d5165763e06d12eb311d55
+Latest commit in repo: 36dc663a6ea7a86f0c0626923e7b78b6e51a40b2
 Last change in file:
-  commit faf9cfc7d1a039dafc47e2c7026571285e540c02
+  commit 36dc663a6ea7a86f0c0626923e7b78b6e51a40b2
   Author: maxmysten <max.spector@mystenlabs.com>
-  Date:   Sat Aug 3 07:37:56 2024 -0400
+  Date:   Mon Sep 9 23:46:42 2024 -0400
   
-      First instance of adding semgrep grammars for Move-on-Sui language.
-      
-      Currently everything in the tree-sitter grammer is fully supported and all tests pass.
-      
-      However, several things are missing from the tree-sitter grammar today:
-      - Proper support for annotations
-      - Support for scripts
-      - The most recent changes to the Move language
+      Adding ellipsis to module_access
 ---

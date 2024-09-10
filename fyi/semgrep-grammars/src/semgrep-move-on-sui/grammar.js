@@ -21,6 +21,7 @@ module.exports = grammar(base_grammar, {
     [$.module_body],
     [$._expression_term],
     [$.semgrep_statement,$._expression_term],
+    [$.typed_metavariable, $.annotation_expression],
   ]),
 
   precedences: ($, previous) => previous.concat([
@@ -33,6 +34,9 @@ module.exports = grammar(base_grammar, {
     [$.module_access, $.field_access_ellipsis_expr],
     [$.bind_unpack, $.name_expression],
     [$.type_arguments, $._type, $.module_access],
+    [$.annotation_expression, $.typed_metavariable],
+    [$._semgrep_metavar_ellipsis, $.typed_metavariable],
+
   ]),
 
   /*
@@ -43,14 +47,22 @@ module.exports = grammar(base_grammar, {
     // Semgrep components, source: semgrep-rust
     ellipsis: $ => '...',
     deep_ellipsis: $ => seq('<...',$._expression, '...>'),
-    _semgrep_metavar_ellipsis: $ => /\$\.\.\.[A-Z_][A-Z_0-9]*/,
-    _semgrep_metavariable: $ => /\$[A-Z_][A-Z_0-9]*/,
 
 
     // Typed metavariable (an expression, not a parameter)
     // This is grammatically indistinguishable from `$.type_hint_expr: $ => seq('(', $._expr, ':', $.type, ')')`.
     // This will be handled by the semgrep converter by checking the metavariable name (`$`).
-    typed_metavariable: $ => seq('(', $.identifier, ':', $._type, ')'),
+
+
+    typed_metavariable: $ => seq('(',  $.identifier, ':', $._type, ')'),
+
+    _clean_identifier: $ => /(`)?[a-zA-Z_][0-9a-zA-Z_]*(`)?/,
+
+    _macro_identifier_dollar : $ => /\$[a-zA-Z][0-9a-zA-Z_]*/,
+    _semgrep_metavar_ellipsis: $ => /\$\.\.\.[A-Z_][A-Z_0-9]*/,
+    _semgrep_metavar_var: $ => /\$[A-Z_][A-Z_0-9]*/,
+
+
 
     // Alternate "entry point". Allows parsing a standalone expression.
     semgrep_expression: $ => choice(
@@ -88,15 +100,48 @@ module.exports = grammar(base_grammar, {
       $.semgrep_partial,
     ),
 
+    _identifier_or_metavariable: ($, previous) =>  choice(
+        choice(
+            $._macro_identifier_dollar,
+            $._semgrep_metavar_ellipsis,
+            $._semgrep_metavar_var,
+            '_',
+        ),
+        seq(
+          optional('phantom'),
+          $._clean_identifier,
+        )
+    ),
+
     // Module declaration
     module_body: ($, previous) => choice(
       previous,
       $.ellipsis,
     ),
 
-    module_access: ($, previous) => choice( 
-      previous,
-      $.ellipsis
+    module_access: ($, previous)  => choice(
+      // macro variable access
+      field('member', alias(prec.right(choice(
+          $._semgrep_metavar_ellipsis,
+          $._macro_identifier_dollar,
+          prec(-1,$.identifier),
+        )),  $.identifier)
+      ),
+      // address access
+      seq('@', field('member', $.identifier)),
+      field('member', alias($._reserved_identifier, $.identifier)),
+      seq(
+        field('module', $._module_identifier),
+        '::',
+        field('member', $.identifier)
+      ),
+      seq(
+        $.module_identity,
+        '::',
+        field('member', $.identifier)
+      ),
+      seq($.module_identity, '::', field('enum_name', $.identifier), '::', field('variant', $.identifier)),
+      $.ellipsis,
     ),
 
     // Spec block members
@@ -150,6 +195,7 @@ module.exports = grammar(base_grammar, {
       previous,
       $.ellipsis,
       $.deep_ellipsis,
+      $.typed_metavariable,
     ),
 
     // expression 
@@ -165,8 +211,6 @@ module.exports = grammar(base_grammar, {
       prec(UNARY_PREC, $.ellipsis),
       prec(UNARY_PREC, $.deep_ellipsis),
       prec(UNARY_PREC, $.field_access_ellipsis_expr),
-      $.typed_metavariable,
-
     ),
     _dot_or_index_chain: ($, previous) => choice(
       previous,
@@ -176,7 +220,12 @@ module.exports = grammar(base_grammar, {
     // function parameter
     // (e.g. `call( ..., arg, ...)`)
     function_parameter: ($, previous) => choice(
-      previous,
+      seq(
+        optional('mut'),
+        field('name', alias($._identifier_or_metavariable, $.variable_identifier)),
+        ':',
+        field('type', $._type),
+      ),
       $.ellipsis,
     ),
 
@@ -197,9 +246,15 @@ module.exports = grammar(base_grammar, {
     // type parameter
     // (e.g. `Type<..., T>`)
     type_parameter: ($, previous) => choice(
-      previous,
-      $.ellipsis,
+      seq(
+        alias($._identifier_or_metavariable, $.type_parameter_identifier),
+        optional(seq(':',
+          sepBy1('+', $.ability)
+        )),
+      ),
+        $.ellipsis,
     ),
+
 
     // type arguments
     // (e.g. `Type<..., T>`)
@@ -220,15 +275,18 @@ module.exports = grammar(base_grammar, {
 
     field_access_ellipsis_expr: $ => prec.left(FIELD_PREC, seq(
       field('element', $._dot_or_index_chain), '.',$.ellipsis )),
-    // identifier, extended to support metavariables
-    identifier: ($, previous) => token(choice(
-      previous,
-      // Metavariables
-      prec(200,alias(
-        /\$[A-Z_][A-Z_0-9]*/,$.meta_var)), 
-      prec(300,alias(
-          /\$\.\.\.[A-Z_][A-Z_0-9]*/,$.metavar_ellipsis)), 
-        
-    )),
+ 
+    identifier: $ => /(`)?[a-zA-Z_][0-9a-zA-Z_]*(`)?|\$\.\.\.[A-Z_][A-Z_0-9]*]|\$[A-Z_][A-Z_0-9]*/,
+
   }
 });
+
+
+//      (<rule> 'sep')* <rule>?
+// Note that this allows an optional trailing `sep`.
+function sepBy(sep, rule) {
+  return seq(repeat(seq(rule, sep)), optional(rule));
+}
+function sepBy1(sep, rule) {
+  return seq(rule, repeat(seq(sep, rule)), optional(sep));
+}
